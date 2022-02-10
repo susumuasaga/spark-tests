@@ -1,0 +1,62 @@
+@startuml
+class pyspark.sql.SparkSession {
+    table(tableName)
+    sql(sql_query)
+    createDataFrame(data, schema=None, samplingRatio=None, verifySchema=None)
+}
+
+class spark_tests.sql.FakeSparkSession {
+    sql_queries
+    __init__(real)
+    clear()
+    table((tableName)
+    sql((sql_query)
+    createDataFrame(data, schema=None, samplingRatio=None, verifySchema=None)
+}
+spark_tests.sql.FakeSparkSession -up-> pyspark.sql.SparkSession: real
+spark_tests.sql.FakeSparkSession -up-|> pyspark.sql.SparkSession
+
+class pyspark.sql.DataFrame {
+    select(*cols)
+    filter(condition)
+    groupBy(*cols)
+}
+pyspark.sql.DataFrame <.left. pyspark.sql.SparkSession
+
+class spark_tests.sql.FakeDataFrame {
+    __init__(real)
+    __getattribute__(item)
+}
+spark_tests.sql.FakeDataFrame -up-> pyspark.sql.DataFrame: real
+spark_tests.sql.FakeDataFrame -up-|> pyspark.sql.DataFrame
+spark_tests.sql.FakeDataFrame <.left. spark_tests.sql.FakeSparkSession
+
+class pyspark.sql.DataFrameWriter {
+    format(source)
+    option(key, value)
+    save(path=None, format=None, mode=None, partitionBy=None, **options)
+}
+pyspark.sql.DataFrameWriter <-left- pyspark.sql.DataFrame: write
+
+class spark_tests.sql.FakeDFWriter <<Singleton>> {
+    path
+    name
+    save_format
+    save_mode
+    partition_by
+    save_options
+    output
+    clear()
+    format(format)
+    mode(mode)
+    partitionBy(*cols))
+    option(key, value)
+    options(**options)
+    save(path=None, format=None, mode=None, partitionBy=None, **options)
+    saveAsTable(name=None, format=None, mode=None, partitionBy=None, **options)
+}
+spark_tests.sql.FakeDFWriter -up-|> pyspark.sql.DataFrameWriter
+spark_tests.sql.FakeDFWriter <-left- spark_tests.sql.FakeDataFrame: write
+
+spark_tests.sql -up-> spark_tests.sql.FakeDFWriter: FAKE_DF_WRITER
+@enduml

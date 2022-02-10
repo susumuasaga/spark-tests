@@ -1,0 +1,8 @@
+databricks-cli
+databricks-connect
+pandas
+pyarrow
+requests
+ipython
+build
+twine
