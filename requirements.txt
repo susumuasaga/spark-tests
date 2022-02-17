@@ -1,8 +1,8 @@
-databricks-cli
-databricks-connect
+databricks-connect==9.1.5
 pandas
 pyarrow
 requests
 ipython
 build
 twine
+pytest

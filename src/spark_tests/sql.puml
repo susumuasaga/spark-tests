@@ -17,6 +17,7 @@ spark_tests.sql.FakeSparkSession -up-> pyspark.sql.SparkSession: real
 spark_tests.sql.FakeSparkSession -up-|> pyspark.sql.SparkSession
 
 class pyspark.sql.DataFrame {
+    alias_name
     select(*cols)
     filter(condition)
     groupBy(*cols)

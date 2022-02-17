@@ -1,79 +1,42 @@
 """Delta table test classes.
 
-Merges will be just logged with no change to the data.
+Merges operations will be just logged with no change to the database.
 """
 from delta.tables import DeltaTable, DeltaMergeBuilder
-from typing import Optional, Mapping
-from pyspark.sql import SparkSession, DataFrame
+from typing import Optional, Dict
 
-
-class FakeDeltaMergeBuilder(DeltaMergeBuilder):
-    """Builds a fake `sql_query` to perform a Merge.
-
-    `self.sql_query` is just for testing purposes
-    and will error with a real `DeltaTable`.
-    Therefore `target` table must be a `FakeDeltaTable`
-    The source `DataFrame` will not be validated,
-    being referred as source src in `self.sql_query`.
-    Fake `sql_query` will be just logged on `execute`.
-
-    Attributes:
-        spark: `FakeSparkSession` injected
-        sql_query: sql query being built
-    """
-    def __init__(self, target: 'FakeDeltaTable', source: DataFrame,
-                 condition: str) -> None:
-        self.spark = target.spark
-        self.sql_query = f"MERGE INTO {target.name} "
-        if target.alias_name:
-            self.sql_query += f"{target.alias_name} "
-        self.sql_query += f"USING source src "
-        self.sql_query += f"ON {condition} "
-
-    def whenMatchedUpdate(
-            self, condition: Optional[str] = None, set: Mapping[str, str] = None
-    ) -> 'FakeDeltaMergeBuilder':
-        """Update a matched table row based on the rules defined by `set`.
-        """
-        self.sql_query += "WHEN MATCHED "
-        if condition:
-            self.sql_query += f"AND {condition} "
-        self.sql_query += f"THEN "
-        for k in set:
-            self.sql_query += f"{k} = {set[k]}, "
-        self.sql_query = self.sql_query[:-2] + " "
-        return self
-
-    def execute(self) -> None:
-        """Log `sql_query`"""
-        self.spark.sql(self.sql_query)
+from spark_tests.sql import FakeDataFrame, FakeSparkSession
 
 
 class FakeDeltaTable(DeltaTable):
-    """`FakeDeltaTable`
-
-    Logs merge operations with no change in the data.
+    """Logs merge operations with no change in the data.
 
     Attributes:
-        spark: a `FakeSparkSession`
-        name: name or path of the table
+        spark: `FakeSparkSession`
+        name: Optional name of the table
+        path: Optional path of the table
         alias_name: alias name of the table
+        source: `DataFrame` to merge
     """
-    def __init__(self, spark: SparkSession, name: Optional[str] = None) -> None:
+    def __init__(self, spark: FakeSparkSession) -> None:
         self.spark = spark
-        self.name = name
+        self.name = None
+        self.path = None
         self.alias_name = None
+        self.source = None
 
     @classmethod
-    def forPath(cls, spark: SparkSession, path: str) -> 'FakeDeltaTable':
+    def forPath(cls, spark: FakeSparkSession, path: str) -> 'FakeDeltaTable':
         """Creates a `FakeDeltaTable` for given `path`."""
-        result = cls(spark, name=path)
+        result = cls(spark)
+        result.path = path
         return result
 
     @classmethod
-    def forName(cls, spark: SparkSession, name: str) -> 'FakeDeltaTable':
+    def forName(cls, spark: FakeSparkSession, name: str) -> 'FakeDeltaTable':
         """Creates a `FakeDeltaTable` for given `name`."""
-        result = cls(spark, name=name)
+        result = cls(spark)
+        result.name = name
         return result
 
     def alias(self, alias_name: str) -> 'FakeDeltaTable':
@@ -81,8 +44,97 @@ class FakeDeltaTable(DeltaTable):
         self.alias_name = alias_name
         return self
 
-    def merge(self, source: DataFrame, condition: str) -> DeltaMergeBuilder:
-        """Logs merging operation from `source` `DataFrame`
+    def merge(self, source: FakeDataFrame,
+              condition: str) -> 'FakeDeltaMergeBuilder':
+        """Start building `FakeDeltaMerge` from `source` `DataFrame`
         on the given merge `condition`."""
         result = FakeDeltaMergeBuilder(self, source, condition)
         return result
+
+
+class FakeDeltaMerge:
+    """Log of a merge operation.
+
+    Logs merge parameters to check later in a test case,
+    but does not execute the merge.
+
+    Attributes:
+        target:
+            Target `DeltaTable`
+        source: `DataFrame`
+            Source `DataFrame`
+        condition:
+            Condition to match source rows with the target rows
+        matched_action: {"UPDATE", "DELETE"}
+            Optional action to be done on matched rows
+        matched_condition:
+            Optional condition to perform not_matched_action
+        matched_update:
+            Defines the rules of setting the values of columns
+            that need to be updated.
+        not_matched_action: {"INSERT"}
+            Optional action to be done on not matched rows
+        not_matched_condition:
+            Optional condition to perform not_matched_action
+        not_matched_insert:
+            Defines the rules of setting the values of columns
+            that need to be inserted.
+        is_executed:
+            Flag of execution.
+
+    """
+    def __init__(self) -> None:
+        self.target: FakeDeltaTable = None
+        self.source: FakeDataFrame = None
+        self.condition: str = None
+        self.matched_action: Optional[str] = None
+        self.matched_condition: Optional[str] = None
+        self.matched_update: Dict[str, str] = {}
+        self.not_matched_action: Optional[str] = None
+        self.not_matched_condition: Optional[str] = None
+        self.not_matched_insert: Dict[str, str] = {}
+        self.is_executed = False
+
+    def clear(self) -> None:
+        self.__init__()
+
+
+FAKE_DELTA_MERGE = FakeDeltaMerge()
+
+
+class FakeDeltaMergeBuilder(DeltaMergeBuilder):
+    """Builds a `FakeDeltaMerge`.
+    """
+    def __init__(self, target: FakeDeltaTable, source: FakeDataFrame,
+                 condition: str) -> None:
+        FAKE_DELTA_MERGE.target = target
+        FAKE_DELTA_MERGE.source = source
+        FAKE_DELTA_MERGE.condition = condition
+
+    def whenMatchedUpdate(
+            self, condition: Optional[str] = None,
+            set: Optional[Dict[str, str]] = None
+    ) -> 'FakeDeltaMergeBuilder':
+        FAKE_DELTA_MERGE.matched_action = "UPDATE"
+        FAKE_DELTA_MERGE.matched_condition = condition
+        FAKE_DELTA_MERGE.matched_update = set
+        return self
+
+    def whenMatchedDelete(
+            self, condition: Optional[str] = None
+    ) -> 'FakeDeltaMergeBuilder':
+        FAKE_DELTA_MERGE.matched_action = "DELETE"
+        FAKE_DELTA_MERGE.matched_condition = condition
+        return self
+
+    def whenNotMatchedInsert(
+            self, condition: Optional[str] = None,
+            values: Optional[Dict[str, str]] = None
+    ) -> 'FakeDeltaMergeBuilder':
+        FAKE_DELTA_MERGE.not_matched_action = "INSERT"
+        FAKE_DELTA_MERGE.not_matched_condition = condition
+        FAKE_DELTA_MERGE.not_matched_insert = values
+        return self
+
+    def execute(self) -> None:
+        FAKE_DELTA_MERGE.is_executed = True

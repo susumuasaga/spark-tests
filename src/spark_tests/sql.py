@@ -29,8 +29,9 @@ class FakeSparkSession(SparkSession):
         self.sql_queries: List[str] = []
 
     def clear(self) -> None:
-        """Clear `sql_queries` list"""
+        """Clear `sql_queries` list and `FAKE_DF_WRITER`"""
         self.__init__(self.real)
+        FAKE_DF_WRITER.clear()
 
     def table(self, table_name: str) -> "FakeDataFrame":
         """Returns specified table as `FakeDataFrame`.
@@ -71,11 +72,13 @@ class FakeDataFrame(DataFrame):
     """`DataFrame` proxy.
 
     Attributes:
-        real: real `DataFrame`.
+        real: real `DataFrame`
+        alias_name: `DataFrame` alias name
     """
 
     def __init__(self, real: DataFrame) -> None:
         self.real = real
+        self.alias_name: Optional[str] = None
 
     def __getattribute__(self, item):
         """Get attribute or method.
@@ -99,9 +102,12 @@ class FakeDataFrame(DataFrame):
             return FakeGroupedData(self.real.groupBy(*args, **kwargs))
 
         def wrap_fake_df(*args, **kwargs) -> FakeDataFrame:
-            return FakeDataFrame(getattr(self.real, item)(*args, **kwargs))
+            result = FakeDataFrame(getattr(self.real, item)(*args, **kwargs))
+            if item == "alias":
+                result.alias_name = args[0]
+            return result
 
-        if item in {"real", "write"}:
+        if item in {"real", "write", "alias_name"}:
             return super().__getattribute__(item)
         elif item in {"groupBy", "groupby"}:
             return wrap_fake_grouped
@@ -127,7 +133,7 @@ class FakeDataFrame(DataFrame):
 
         Set `self` as the source `DataFrame`.
         """
-        FAKE_DF_WRITER.input_df = self
+        FAKE_DF_WRITER.source = self
         return FAKE_DF_WRITER
 
 
@@ -188,16 +194,18 @@ class FakeDFWriter(DataFrameWriter):
         name:
             case writing to a table, the table name
         save_format:
-            the format used to save.
+            the format used to save
+        source:
+            the source `FakeDataFrame`
         save_mode:
             specifies the behavior of the save operation: "error",
             "errorifexists", "append", "overwrite", "ignore"
         partition_by:
             names of partitioning columns
         **save_options:
-            all other of partitioning columns.
-        output:
-            list of `Rows` "written".
+            all other of partitioning columns
+        is_saved:
+            flag of saving execution
     """
 
     def __init__(self):
@@ -207,8 +215,8 @@ class FakeDFWriter(DataFrameWriter):
         self.save_mode = "errorifexists"
         self.partition_by = ()
         self.save_options: Dict[str, str] = {}
-        self.input_df: Optional[DataFrame] = None
-        self.output: List = []
+        self.source: Optional[FakeDataFrame] = None
+        self.is_saved = True
 
     def clear(self):
         """Clear `self` to default values.
@@ -244,19 +252,6 @@ class FakeDFWriter(DataFrameWriter):
         self.save_options = options
         return self
 
-    def _save(self, format, mode, partitionBy, **options):
-        """Logs current `DataFrame` rows to `self.output`."""
-        if format:
-            self.save_format = format
-        if mode:
-            self.save_mode = mode
-        if partitionBy:
-            self.partition_by = partitionBy
-        if options:
-            self.save_options = options
-        input_list = self.input_df.collect()
-        self.output = self.output + input_list
-
     def save(self, path: Optional[str] = None,
              format: Optional[str] = None,
              mode: Optional[str] = None,
@@ -265,7 +260,7 @@ class FakeDFWriter(DataFrameWriter):
         """Logs current `DataFrame` rows that would be written to a file."""
         self.path = path
         self.name = None
-        self._save(format, mode, partitionBy, **options)
+        self.is_saved = True
 
     def saveAsTable(
         self,
@@ -278,7 +273,7 @@ class FakeDFWriter(DataFrameWriter):
         """Logs current `DataFrame` rows that would be written to a table."""
         self.path = None
         self.name = name
-        self._save(format, mode, partitionBy, **options)
+        self.is_saved = True
 
 
 #: `FakeDFWriter` singleton instance.
