@@ -6,3 +6,5 @@ ipython
 build
 twine
 pytest
+sphinx
+sphinx-rtd-theme

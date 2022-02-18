@@ -46,7 +46,8 @@ class spark_tests.sql.FakeDFWriter <<Singleton>> {
     save_mode
     partition_by
     save_options
-    output
+    source
+    is_saved
     clear()
     format(format)
     mode(mode)

@@ -10,7 +10,7 @@ class FakeDatetime(dt.datetime):
 
     Attributes:
         cls.fake_now: `FakeDatetime` for now,
-            by default is `dt.datetime`(2021, 3, 20)
+            by default is `dt.datetime(2021, 3, 20)`.
     """
     fake_now = dt.datetime(2021, 3, 20)
 
@@ -35,7 +35,7 @@ class FakeDate(dt.date):
 
     Attributes:
         fake_today: fake `dt.date` for today,
-            by default is `dt.date`(2021, 3, 20)
+            by default is `dt.date(2021, 3, 20)`.
     """
     fake_today = dt.date(2021, 3, 20)
 

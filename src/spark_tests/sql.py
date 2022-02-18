@@ -182,11 +182,11 @@ class FakeGroupedData(GroupedData):
 
 
 class FakeDFWriter(DataFrameWriter):
-    """Mock `DataFrameWriter`.
+    """Stubs `DataFrameWriter`.
 
-    Logs the rows written instead of actually writing the data.
+    Logs the write operation instead of actually writing the data.
 
-    Singleton assumes that for each test case there is only one writer.
+    Singleton assumes that for each test case there is only one writing.
 
     Attributes:
         path:
@@ -202,7 +202,7 @@ class FakeDFWriter(DataFrameWriter):
             "errorifexists", "append", "overwrite", "ignore"
         partition_by:
             names of partitioning columns
-        **save_options:
+        save_options:
             all other of partitioning columns
         is_saved:
             flag of saving execution
