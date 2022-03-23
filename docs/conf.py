@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.abspath('../src'))
 # -- Project information -----------------------------------------------------
 
 project = 'spark-tests'
-copyright = '2022, Semantix Inc.'
+copyright = '2022, Semantix Inc'
 author = 'Edson Susumu Asaga'
 
 # The full version, including alpha/beta/rc tags

@@ -96,9 +96,11 @@ class FakeDeltaMerge:
         self.is_executed = False
 
     def clear(self) -> None:
+        """Clear `self`."""
         self.__init__()
 
 
+#: `FakeDeltaMerge` singleton instance.
 FAKE_DELTA_MERGE = FakeDeltaMerge()
 
 
