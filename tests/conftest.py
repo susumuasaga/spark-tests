@@ -44,10 +44,9 @@ def mock_date(monkeypatch: MonkeyPatch) -> FakeDate:
     Returns:
         FakeDatetime(2021, 3, 20)
     """
-    fake_date = FakeDate(2021, 3, 20)
-    fake_date.set_fake_today(dt.date(2021, 3, 20))
+    FakeDatetime.set_fake_now(dt.datetime(2021, 3, 20))
     monkeypatch.setattr(dt, "date", FakeDatetime)
-    return fake_date
+    return FakeDate(2021, 3, 20)
 
 
 @pytest.fixture(scope="function")

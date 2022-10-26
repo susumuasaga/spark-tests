@@ -8,6 +8,7 @@ Define test classes for Spark SQL:
 """
 from typing import List, Optional, Dict, Union
 
+from pyspark import SparkContext
 from pyspark.sql import SparkSession, DataFrame, DataFrameWriter, GroupedData
 from pyspark.sql.types import StructType
 
@@ -67,6 +68,14 @@ class FakeSparkSession(SparkSession):
         """
         return FakeDataFrame(self.real.createDataFrame(data, schema))
 
+    @property
+    def sparkContext(self) -> SparkContext:
+        """Returns `SparkContext`.
+
+        Delegates to `self.real`.
+        """
+        return self.real.sparkContext
+
 
 class FakeDataFrame(DataFrame):
     """`DataFrame` proxy.
@@ -111,17 +120,24 @@ class FakeDataFrame(DataFrame):
             return super().__getattribute__(item)
         elif item in {"groupBy", "groupby"}:
             return wrap_fake_grouped
-        elif item in {"alias",
-                      "filter",
-                      "drop",
-                      "join",
-                      "distinct",
-                      "withColumn",
-                      "select",
-                      "orderBy", "sort",
-                      "subtract",
-                      "union",
-                      "fillna"}:
+        elif item in {
+                "agg", "alias",
+                "checkpoint", "coalesce", "crossJoin",
+                "distinct",
+                "drop", "dropDuplicates", "drop_duplicates", "dropna",
+                "exceptAll",
+                "fillna", "filter",
+                "intersect", "intersectAll",
+                "join",
+                "limit", "localCheckpoint",
+                "orderBy",
+                "repartition", "repartitionByRange", "replace",
+                "sample", "sampleBy", "select", "selectExpr",
+                "sort", "sortWithinPartitions", "subtract",
+                "toDF", "transform",
+                "union", "unionAll", "unionByName",
+                "where", "withColumn", "withColumns", "withColumnRenamed",
+                "withMetadata"}:
             return wrap_fake_df
         else:
             attrib = getattr(self.real, item)
@@ -159,7 +175,7 @@ class FakeGroupedData(GroupedData):
         return result
 
     def pivot(
-        self, pivot_col: str, values: Optional[List[str]] = None
+            self, pivot_col: str, values: Optional[List[str]] = None
     ) -> GroupedData:
         """Pivots a column of the current `DataFrame`.
 
@@ -263,12 +279,12 @@ class FakeDFWriter(DataFrameWriter):
         self.is_saved = True
 
     def saveAsTable(
-        self,
-        name: str,
-        format: Optional[str] = None,
-        mode: Optional[str] = None,
-        partitionBy: Optional[Union[str, List[str]]] = None,
-        **options: str
+            self,
+            name: str,
+            format: Optional[str] = None,
+            mode: Optional[str] = None,
+            partitionBy: Optional[Union[str, List[str]]] = None,
+            **options: str
     ) -> None:
         """Logs current `DataFrame` rows that would be written to a table."""
         self.path = None
