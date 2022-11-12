@@ -1,4 +1,4 @@
-databricks-connect==9.1.5
+databricks-connect
 pandas
 pyarrow
 requests
